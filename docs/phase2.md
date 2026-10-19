@@ -1,30 +1,23 @@
 # Phase 2
 
-Phase 1 lands data, checks it, opens incidents, and records a human decision. Phase 2 should add retrieval, a structured root-cause step, and an API, while keeping the same rule: a model never writes production telemetry.
+Phase 2 is the incident-analysis workflow. Retrieval, the structured analyst, and the review API are in place. A model still cannot write telemetry.
 
-## Data engineering
+## What runs locally
 
-- Add a Databricks entry point that reuses `bronze_frame`, `silver_frame`, and `gold_frame` and writes Delta with `df.write.format("delta")`.
-- Replace the local full-refresh publish with an incremental bronze append and a silver merge.
-- Keep the Phase 1 rules as the first quality gate, then add checks that need more than one row: position jumps, vertical-speed spikes, and fuel that increases during a flight.
-- Store incidents in a Delta table with a stable schema. Keep `sample_records` as a JSON string if the sample shape varies.
-- Partition larger telemetry tables by event date as well as aircraft.
-
-## Retrieval and analysis
-
-- Embed `data/knowledge_base` and retrieve the rule, schema, and playbook passages that match an open incident.
-- Call a model from `src/ai` and validate the response as `RootCauseAnalysis`.
-- Put the rule's `violation_sql` in the prompt so `validation_sql` is a query a person can run, not a free-form guess.
-- Return evidence that cites the retrieved passages and the incident sample.
-- Leave `recommended_action` as text. Do not add a tool that updates bronze, silver, or gold from that text.
-
-## API and approval
-
-- Serve incidents, the analysis, and the audit log with FastAPI.
-- `POST` approval through `submit_human_decision`, with the caller identity stored as `actor`.
-- Reject any route whose body would apply `recommended_action` directly to a table.
-- Keep the audit log append-only.
+- `src/rag` loads `data/knowledge_base` and retrieves schema, SLA, pipeline, and historical-incident passages for an open incident.
+- `src/ai` turns the incident, the failed sample, the data-quality rule, and those passages into a `RootCauseAnalysis`.
+- `LLM_PROVIDER=mock` is the default and is what the tests use. `LLM_PROVIDER=openai` or `openai_compatible` calls `POST {LLM_BASE_URL}/chat/completions` with `LLM_API_KEY` and `LLM_MODEL`.
+- `src/api` serves:
+  - `GET /incidents`
+  - `GET /incidents/{id}`
+  - `POST /incidents/{id}/analyze`
+  - `POST /incidents/{id}/approve`
+  - `POST /incidents/{id}/reject`
+- Approve and reject call `submit_human_decision`. The body is an actor and a note. Extra fields are rejected. A second decision on the same incident is rejected.
 
 ## Still later
 
-A review screen can wait until the API and the analysis contract are stable. The screen should display the incident, the evidence, and the approval buttons. It should not gain a control that rewrites production data.
+- Databricks entry point that writes Delta with `df.write.format("delta")`, plus incremental bronze append and silver merge.
+- Quality checks that need more than one row, such as position jumps and fuel that increases during a flight.
+- A review screen. It should show the incident, the evidence, and the approval buttons, and it should not gain a control that rewrites production data.
+- Streaming ingest, experiment tracking, and multi-agent orchestration are out of scope.

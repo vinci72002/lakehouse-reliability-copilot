@@ -1,5 +1,5 @@
-"""HTTP API.
+"""Incident API. Routes do not apply recommendations to telemetry tables."""
 
-Phase 2 will add FastAPI routes for incidents, analysis, and approval.
-Those routes must not apply an AI recommendation to production tables.
-"""
+from api.app import create_app, sample_incidents
+
+__all__ = ["create_app", "sample_incidents"]

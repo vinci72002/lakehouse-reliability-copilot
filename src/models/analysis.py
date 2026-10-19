@@ -1,7 +1,7 @@
-"""Structured root-cause contract for a later analyst model.
+"""Structured root-cause contract.
 
-Phase 1 defines the shape only. Nothing in this package calls a model
-or applies a recommended action to lakehouse tables.
+Analysts in ``src/ai`` must return this shape. Saving an analysis does
+not apply ``recommended_action`` to lakehouse tables.
 """
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator

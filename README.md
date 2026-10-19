@@ -1,8 +1,8 @@
 # Lakehouse Reliability Copilot
 
-Phase 1 is a local data-reliability pipeline for aircraft telemetry. It lands a synthetic fleet sample in a medallion layout, checks five data-quality rules, opens an incident for each failure, and records human approval in an audit log.
+Local data-reliability pipeline for aircraft telemetry. A batch lands in a medallion layout, checks five data-quality rules, and opens an incident for each failure. Phase 2 retrieves knowledge-base context, writes a structured root-cause analysis, and waits for a person to approve or reject it.
 
-The batch is Databricks-shaped: the same schemas, rule SQL, and Spark filters are what a cluster job would run. Phase 1 executes them on this machine. It does not call a model, and it does not let an automated recommendation change telemetry.
+The batch is Databricks-shaped: the same schemas, rule SQL, and Spark filters are what a cluster job would run. Analysis never rewrites telemetry.
 
 ## Flow
 
@@ -13,6 +13,8 @@ synthetic telemetry
   -> incidents
   -> silver (rows that pass every rule)
   -> gold flight summary
+  -> RAG context
+  -> root-cause analysis
   -> human approval
   -> audit log
 ```
@@ -29,9 +31,9 @@ src/ingestion     synthetic generator and fault injection
 src/pipelines     medallion run, Delta snapshots, local Spark transforms
 src/dq            rules, evaluation, incident creation
 src/audit         append-only audit log and human approval
-src/rag           Phase 2 retrieval
-src/ai            Phase 2 root-cause analysis
-src/api           Phase 2 FastAPI
+src/rag           knowledge-base retrieval
+src/ai            mock and OpenAI-compatible root-cause analysis
+src/api           FastAPI incident, analysis, and approval routes
 tests             pytest suite
 docs              architecture and the Phase 2 plan
 data/knowledge_base
@@ -56,6 +58,14 @@ Run the local batch and write Delta tables under `data/lakehouse`:
 python scripts/run_phase1.py
 ```
 
+Start the incident API. `LLM_PROVIDER` defaults to `mock`, which needs no network. Set `LLM_PROVIDER=openai` with `LLM_API_KEY`, and optionally `LLM_MODEL` and `LLM_BASE_URL`, to call an OpenAI-compatible chat endpoint.
+
+```powershell
+uvicorn api.asgi:app --reload
+```
+
+`GET /incidents`, `GET /incidents/{id}`, `POST /incidents/{id}/analyze`, `POST /incidents/{id}/approve`, and `POST /incidents/{id}/reject` are the Phase 2 routes. Approve and reject require an actor and a note. They change incident status only.
+
 The Docker image installs the same dependencies and runs the test suite:
 
 ```powershell
@@ -63,10 +73,10 @@ docker build -t lakehouse-reliability-copilot .
 docker run --rm lakehouse-reliability-copilot
 ```
 
-## Phase 1 scope
+## Scope
 
-Included: telemetry models, a deterministic generator, duplicate and sensor faults, data-quality rules, incidents, a local medallion run, Delta table snapshots, Spark silver/gold transforms, and human approval with an audit log.
+Phase 1: telemetry models, a deterministic generator, fault injection, data-quality rules, incidents, a local medallion run, Delta snapshots, and Spark silver/gold transforms.
 
-Not included yet: retrieval, a language model, FastAPI, and a frontend. `src/models/analysis.py` only defines the structured root-cause result those later steps must return.
+Phase 2: retrieval over schema, SLA, pipeline, and historical-incident notes; a mock analyst plus an OpenAI-compatible analyst; FastAPI review routes; human approval with an audit log.
 
-See [docs/architecture.md](docs/architecture.md) and [docs/phase2.md](docs/phase2.md).
+Still later: a review screen, streaming ingest, experiment tracking, and multi-agent orchestration. See [docs/architecture.md](docs/architecture.md) and [docs/phase2.md](docs/phase2.md).

@@ -7,11 +7,13 @@ from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from models.analysis import RootCauseAnalysis
 from models.incident import Incident
 
 
 class AuditAction(str, Enum):
     INCIDENT_CREATED = "incident_created"
+    ANALYSIS_RECORDED = "analysis_recorded"
     HUMAN_APPROVED = "human_approved"
     HUMAN_REJECTED = "human_rejected"
 
@@ -84,6 +86,34 @@ def record_incident_creation(
         audit_log.append(entry)
         entries.append(entry)
     return entries
+
+
+def record_analysis(
+    incident: Incident,
+    analysis: RootCauseAnalysis,
+    audit_log: AuditLog,
+    *,
+    actor: str = "ai-analyst",
+    recorded_at: datetime | None = None,
+) -> AuditEntry:
+    """Record that an analysis was stored. This does not change telemetry."""
+    actor_name = require_text(actor, "actor")
+    timestamp = recorded_at or datetime.now(timezone.utc)
+    entry = AuditEntry(
+        audit_id=new_audit_id(),
+        recorded_at=timestamp,
+        actor=actor_name,
+        action=AuditAction.ANALYSIS_RECORDED,
+        incident_id=incident.incident_id,
+        dataset=incident.dataset,
+        detail=(
+            f"Recorded root-cause analysis for {incident.rule_name} "
+            f"with confidence {analysis.confidence_score:.2f}. "
+            "No telemetry tables were modified."
+        ),
+    )
+    audit_log.append(entry)
+    return entry
 
 
 def require_text(value: str, label: str) -> str:

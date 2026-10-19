@@ -52,7 +52,15 @@ A failed rule opens one incident:
 
 The audit log is append-only JSONL. Incident creation is attributed to the pipeline actor, for example `dq-engine`. Approval and rejection are attributed to the person who decided.
 
-Deterministic quarantine is part of the data pipeline. An AI recommendation is not. Phase 1 has no writer that applies a recommended action to a Delta table.
+Deterministic quarantine is part of the data pipeline. An AI recommendation is not. Nothing in the analyst or the API applies `recommended_action` to a Delta table.
+
+## Analysis
+
+`KnowledgeBase` ranks markdown in `data/knowledge_base` by token overlap. An incident query is built from the rule, dataset, summary, and sample rows. The result prefers one passage each from schema, SLA, pipeline documentation, and historical incidents.
+
+`analyze_incident` passes that context to `MockAnalyst` or `OpenAICompatibleAnalyst`. Both must return `RootCauseAnalysis`: root cause, evidence, impact, validation SQL, recommended action, verification steps, and `confidence_score`. The mock analyst copies the rule's violation SQL into `validation_sql`. The HTTP analyst reads `LLM_PROVIDER`, `LLM_API_KEY`, `LLM_MODEL`, and `LLM_BASE_URL`.
+
+The API stores the analysis on the open incident and appends `analysis_recorded` to the audit log. Status stays `open` until `POST /incidents/{id}/approve` or `POST /incidents/{id}/reject`.
 
 ## Local and Databricks
 

@@ -1,6 +1,20 @@
-"""Root-cause analysis.
+"""Root-cause analysis that a person must review before any repair."""
 
-Phase 2 will fill models.analysis.RootCauseAnalysis from a model.
-This package must not write Delta tables. A recommended action stays
-a suggestion until a person approves it through the audit log.
-"""
+from ai.analyst import (
+    AnalysisError,
+    MockAnalyst,
+    OpenAICompatibleAnalyst,
+    UnknownRuleError,
+    build_analyst_from_env,
+)
+from ai.workflow import CompletedAnalysis, analyze_incident
+
+__all__ = [
+    "AnalysisError",
+    "CompletedAnalysis",
+    "MockAnalyst",
+    "OpenAICompatibleAnalyst",
+    "UnknownRuleError",
+    "analyze_incident",
+    "build_analyst_from_env",
+]

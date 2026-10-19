@@ -1,5 +1,9 @@
-"""Retrieval over data/knowledge_base.
+"""Retrieval over the local reliability knowledge base."""
 
-Phase 2 embeds those documents and returns them as evidence for
-root-cause analysis. Phase 1 only stores the source documents.
-"""
+from rag.retriever import KnowledgeBase, RetrievedPassage, default_knowledge_base_dir
+
+__all__ = [
+    "KnowledgeBase",
+    "RetrievedPassage",
+    "default_knowledge_base_dir",
+]
